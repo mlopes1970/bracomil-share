@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v3';
+const CACHE = 'bracomil-share-v4';
 const APP_SHELL = ['./','./index.html','./styles.css','./app.js','./manifest.webmanifest'];
 
 self.addEventListener('install', event => {
