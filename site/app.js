@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v8';
+const CACHE = 'bracomil-share-v9';
 const TOKEN_KEY = 'bracomil_app_token_v1';
 
 const CONFIG = {
@@ -274,6 +274,25 @@ function handleServerResult(data) {
   }
 }
 
+async function postDirectly(fields) {
+  const body = new URLSearchParams();
+
+  Object.entries(fields).forEach(([key, value]) => {
+    body.set(key, value == null ? '' : String(value));
+  });
+
+  // Apps Script não fornece CORS para leitura da resposta.
+  // mode=no-cors permite enviar o POST; a confirmação real
+  // continua sendo obtida pelo recibo consultado por requestId.
+  await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    credentials: 'omit',
+    cache: 'no-store',
+    body
+  });
+}
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -353,47 +372,45 @@ form.addEventListener('submit', async (ev) => {
   try {
     const base64 = await fileToBase64(activeFile);
 
-    document.querySelector('#uploadForm').action =
-      CONFIG.APPS_SCRIPT_URL;
-
-    document.querySelector('#upToken').value = token;
-
-    document.querySelector('#upParty').value =
+    const party =
       document.querySelector('#party').value.trim();
 
-    document.querySelector('#upCategory').value =
+    const category =
       document.querySelector('#category').value;
 
     const documentNumber =
       document.querySelector('#numero_documento').value.trim() || '0';
 
-    document.querySelector('#upDocumentNumber').value =
-      documentNumber;
-
-    document.querySelector('#upNotes').value =
+    const notes =
       document.querySelector('#notes').value.trim();
 
-    document.querySelector('#upFileName').value =
-      activeFile.name;
-
-    document.querySelector('#upMimeType').value =
-      activeFile.type || 'application/octet-stream';
-
-    document.querySelector('#upBase64').value = base64;
-
     const requestId = createRequestId();
-    document.querySelector('#upRequestId').value = requestId;
 
     startReceiptPolling(requestId);
 
-    document.querySelector('#uploadForm').submit();
-
     statusEl.textContent = 'Enviando para o Google Drive…';
+
+    await postDirectly({
+      client: 'web',
+      requestId,
+      appToken: token,
+      party,
+      category,
+      numero_documento: documentNumber,
+      notes,
+      fileName: activeFile.name,
+      mimeType:
+        activeFile.type || 'application/octet-stream',
+      base64
+    });
+
+    statusEl.textContent =
+      'Arquivo transmitido. Aguardando confirmação do servidor…';
 
     uploadTimeoutId = setTimeout(() => {
       if (uploadPending) {
         finishError(
-          'O servidor não confirmou o envio. Não reenvie ainda; verifique a conexão e a planilha para evitar duplicidade.'
+          'O servidor não confirmou o processamento. Não reenvie ainda; verifique a planilha para evitar duplicidade.'
         );
       }
     }, 60000);
