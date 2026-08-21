@@ -14,12 +14,14 @@
       <div class="brand">BRACOMIL</div>
       <h1>Enviar documento</h1>
       <p>Compartilhe do WhatsApp ou selecione um arquivo manualmente.</p>
+      <button id="tokenButton" class="link-button" type="button">Configurar chave</button>
     </header>
 
     <section class="card">
       <form id="docForm">
         <label>Cliente / Fornecedor
-          <input id="party" name="party" autocomplete="organization" placeholder="Nome do cliente ou fornecedor" required>
+          <input id="party" name="party" autocomplete="organization"
+                 placeholder="Nome do cliente ou fornecedor" required>
         </label>
 
         <label>Categoria
@@ -32,6 +34,15 @@
             <option>Documento</option>
             <option>Outros</option>
           </select>
+        </label>
+
+        <label>Nº Doc
+          <input id="numero_documento"
+                 name="numero_documento"
+                 type="text"
+                 value="0"
+                 placeholder="0 quando não houver número"
+                 required>
         </label>
 
         <label>Observação
@@ -51,10 +62,33 @@
     </section>
   </main>
 
+  <div id="successModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+      <h2 id="successTitle">ENVIADO COM SUCESSO!</h2>
+      <button id="successOk" type="button">OK</button>
+    </div>
+  </div>
+
+  <div id="tokenModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="tokenTitle">
+      <h2 id="tokenTitle">Chave da aplicação</h2>
+      <p class="modal-help">Informe a chave fornecida pelo administrador da Bracomil.</p>
+      <input id="tokenInput" type="password" autocomplete="off" placeholder="Chave/token">
+      <div class="modal-actions">
+        <button id="tokenSave" type="button">SALVAR</button>
+        <button id="tokenCancel" class="secondary" type="button">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
   <iframe id="uploadFrame" name="uploadFrame" hidden></iframe>
+
   <form id="uploadForm" method="POST" target="uploadFrame" hidden>
+    <input name="client" value="web">
+    <input name="appToken" id="upToken">
     <input name="party" id="upParty">
     <input name="category" id="upCategory">
+    <input name="numero_documento" id="upDocumentNumber">
     <input name="notes" id="upNotes">
     <input name="fileName" id="upFileName">
     <input name="mimeType" id="upMimeType">
