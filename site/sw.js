@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v7';
+const CACHE = 'bracomil-share-v8';
 const APP_SHELL = [
   './',
   './index.html',
