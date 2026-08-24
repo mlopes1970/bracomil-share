@@ -1,4 +1,5 @@
-const CACHE = 'bracomil-share-v8';
+import {CACHE, SHARE_INBOX_CACHE} from './constants'
+
 const APP_SHELL = [
   './',
   './index.html',
@@ -55,7 +56,7 @@ self.addEventListener('fetch', event => {
             encodeURIComponent(file.name || 'arquivo')
         });
 
-        const cache = await caches.open(CACHE);
+        const cache = await caches.open(SHARE_INBOX_CACHE);
 
         await cache.put(
           './__shared_file__',

@@ -1,4 +1,5 @@
-const CACHE = 'bracomil-share-v9';
+import {SHARE_INBOX_CACHE} from './constants'
+
 const TOKEN_KEY = 'bracomil_app_token_v1';
 
 const CONFIG = {
@@ -315,7 +316,7 @@ async function recoverSharedFile() {
 
   if (url.searchParams.get('shared') !== '1') return;
 
-  const cache = await caches.open(CACHE);
+  const cache = await caches.open(SHARE_INBOX_CACHE);
   const response = await cache.match('./__shared_file__');
 
   if (response) {
