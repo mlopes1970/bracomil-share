@@ -12,7 +12,7 @@
   <main class="shell">
     <header>
       <div class="brand">BRACOMIL</div>
-      <h1>Enviar documento</h1>
+      <h1>Enviar comprovante</h1>
       <p>Compartilhe do WhatsApp ou selecione um arquivo manualmente.</p>
       <button id="tokenButton" class="link-button" type="button">Configurar chave</button>
     </header>
@@ -24,19 +24,17 @@
                  placeholder="Nome do cliente ou fornecedor" required>
         </label>
 
-        <label>Categoria
+        <label>Origem do comprovante
           <select id="category" name="category" required>
             <option value="">Selecione</option>
-            <option>Nota fiscal</option>
-            <option>Pedido</option>
-            <option>Comprovante</option>
-            <option>Foto</option>
-            <option>Documento</option>
+            <option>Pedido de Venda</option>
+            <option>Nota Fiscal</option>
             <option>Outros</option>
           </select>
         </label>
 
-        <label>Nº Doc
+        <label>Identificador<br>
+        <small>No caso de pedido de venda ou nota fiscal, adicione o número delas, no caso de outro, dê alguma forma de identificá-lo no sistema</small>
           <input id="numero_documento"
                  name="numero_documento"
                  type="text"
@@ -53,7 +51,7 @@
           <input id="fileInput" type="file" accept="image/*,application/pdf">
         </label>
 
-        <div id="fileInfo" class="file-info">Nenhum arquivo selecionado.</div>
+        <div id="fileInfo" class="file-info"></div>
         <img id="preview" class="preview" alt="Pré-visualização" hidden>
 
         <button id="sendButton" type="submit">ENVIAR</button>
