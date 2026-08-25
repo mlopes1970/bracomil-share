@@ -2,6 +2,7 @@ const CONFIG = {
   SHEET_ID: '142g4y6HhMkWokdieU3LYQyz3fjkQMLVDi7W-D2kc73A',
   RECORDS_SHEET: 'Registros',
   DEVICES_SHEET: 'Dispositivos',
+  LOGS_SHEET: 'Logs de Desenvolvedor',
   DRIVE_FOLDER_ID: '1d1j7MHwHSGjdFDnY7TD_YRXYG5Awxsqo',
   TIMEZONE: 'America/Fortaleza'
 };
@@ -35,6 +36,15 @@ const DEVICE_HEADERS = [
   'Criado em',
   'Último uso'
 ];
+
+const LOGS_HEADER = [
+  'Data',
+  'Request ID',
+  'Source',
+  'Status',
+  'Message',
+  'Extra'
+]
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -241,6 +251,19 @@ function cacheReceipt_(requestId, status, message, extra) {
       JSON.stringify(payload),
       600
     );
+
+  // Add permanently in Sheet
+  const logs = getOrCreateSheet_(ss, CONFIG.LOGS_SHEET, LOGS_HEADER);
+  ensureHeaders_(logs, LOGS_HEADER);
+
+  logs.appendRow([
+    new Date(),         // Data
+    requestId,          // Request ID
+    "bracomil-share",   // Source
+    status,             // Status
+    message,            // Message
+    extra,              // Extra
+  ]);
 }
 
 function statusResponse_(p) {
