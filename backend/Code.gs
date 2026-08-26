@@ -500,7 +500,7 @@ function buildFileName_(date, party, category, extension) {
   const day = Utilities.formatDate(
     date,
     CONFIG.TIMEZONE,
-    'dd/MM/yyyy-HH:mm:ss'
+    'yyyy-MM-dd_HH:mm:ss'
   );
   const partyPart = filePart_(party).slice(0, 45);
   const categoryPart = filePart_(category).slice(0, 30);
