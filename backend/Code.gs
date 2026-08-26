@@ -11,8 +11,10 @@ const RECORD_HEADERS = [
   'ID',
   'Data/Hora',
   'Cliente/Fornecedor',
-  'Categoria',
-  'Nº Doc',
+  'Origem do comprovante',
+  'Identificador',
+  'Forma de Pagamento',
+  'Valor',
   'Observação',
   'Arquivo',
   'MIME',
@@ -86,6 +88,25 @@ function doPost(e) {
 
     if (!p.category || !String(p.category).trim()) {
       throw new Error('Categoria obrigatória.');
+    }
+
+    const paymentMethod = String(p.paymentMethod || '').trim();
+    if (!paymentMethod) {
+      throw new Error('Forma de Pagamento obrigatória.');
+    }
+
+    let amount = String(p.amount || '').trim();
+    if (paymentMethod === 'Espécie') {
+      if (!amount) {
+        throw new Error('Valor obrigatório para pagamento em espécie.');
+      }
+
+      amount = parseBrazilianAmount_(p.amount);
+      if (amount <= 0) {
+        throw new Error('O valor deve ser maior que zero.');
+      }
+    } else {
+      amount = '';
     }
 
     const bytes = Utilities.base64Decode(p.base64);
@@ -163,6 +184,8 @@ function doPost(e) {
       party,
       category,
       documentNumber,
+      paymentMethod,
+      amount,
       p.notes || '',
       file.getName(),
       file.getMimeType(),
@@ -457,8 +480,8 @@ function findDuplicate_(records, fileHash) {
 
   if (lastRow < 2) return null;
 
-  // SHA-256 está na coluna L (12), após a inclusão de Nº Doc em E.
-  const hashRange = records.getRange(2, 12, lastRow - 1, 1);
+  // SHA-256 está na coluna L (14), após a inclusão de Nº Doc em E.
+  const hashRange = records.getRange(2, 14, lastRow - 1, 1);
   const match = hashRange
     .createTextFinder(fileHash)
     .matchEntireCell(true)
@@ -626,7 +649,7 @@ function ensureRecordSchema_(sheet) {
 
     let changed = false;
 
-    const normalized = values.map(function(row) {
+    const normalized = values.map(function (row) {
       const value = String(row[0] == null ? '' : row[0]).trim();
 
       if (!value) {
@@ -656,7 +679,7 @@ function sha256Hex_(bytes) {
   );
 
   return digest
-    .map(function(b) {
+    .map(function (b) {
       const v = (b + 256) % 256;
       return ('0' + v.toString(16)).slice(-2);
     })
@@ -700,4 +723,20 @@ function response_(client, status, message, extra) {
       '</script></body></html>'
     )
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Replaces R$ for nothing and . for , */
+function parseBrazilianAmount_(value) {
+  const text = String(value || '')
+    .replace(/\s/g, '')
+    .replace(/R\$/gi, '')
+    .replace(/\./g, ',')
+
+  const number = Number(text);
+
+  if (!Number.isFinite(number)) {
+    throw new Error('Valor inválido.');
+  }
+
+  return number;
 }

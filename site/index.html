@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,6 +9,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
 </head>
+
 <body>
   <main class="shell">
     <header>
@@ -20,8 +22,8 @@
     <section class="card">
       <form id="docForm">
         <label>Cliente / Fornecedor
-          <input id="party" name="party" autocomplete="organization"
-                 placeholder="Nome do cliente ou fornecedor" required>
+          <input id="party" name="party" autocomplete="organization" placeholder="Nome do cliente ou fornecedor"
+            required>
         </label>
 
         <label>Origem do comprovante
@@ -34,13 +36,27 @@
         </label>
 
         <label>Identificador<br>
-        <small>No caso de pedido de venda ou nota fiscal, adicione o número delas, no caso de outro, dê alguma forma de identificá-lo no sistema</small>
-          <input id="numero_documento"
-                 name="numero_documento"
-                 type="text"
-                 value="0"
-                 placeholder="0 quando não houver número"
-                 required>
+          <small>No caso de pedido de venda ou nota fiscal, adicione o número delas, no caso de outro, dê alguma forma
+            de identificá-lo no sistema</small>
+          <input id="numero_documento" name="numero_documento" type="text" value="0"
+            placeholder="0 quando não houver número" required>
+        </label>
+
+        <label>Forma de Pagamento
+          <select id="paymentMethod" name="paymentMethod" required>
+            <option value="">Selecione</option>
+            <option value="PIX">PIX</option>
+            <option value="Cartão">Cartão</option>
+            <option value="Espécie">Espécie</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+
+        <label id="amountField" hidden>
+          Valor
+          <input id="amount" name="amount" type="text" inputmode="decimal" placeholder="R$ 0,00">
         </label>
 
         <label>Observação
@@ -96,4 +112,5 @@
 
   <script src="./app.js"></script>
 </body>
+
 </html>

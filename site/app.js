@@ -15,6 +15,10 @@ const preview = document.querySelector('#preview');
 const sendButton = document.querySelector('#sendButton');
 const uploadFrame = document.querySelector('#uploadFrame');
 
+const paymentMethod = document.querySelector('#paymentMethod');
+const amountField = document.querySelector('#amountField');
+const amountInput = document.querySelector('#amount');
+
 const successModal = document.querySelector('#successModal');
 const successOk = document.querySelector('#successOk');
 const tokenModal = document.querySelector('#tokenModal');
@@ -392,6 +396,20 @@ form.addEventListener('submit', async (ev) => {
 
     statusEl.textContent = 'Enviando para o Google Drive…';
 
+    const paymentMethod = document.querySelector('#paymentMethod').value;
+
+    const amount = document.querySelector('#amount').value.trim();
+
+    if (!paymentMethod) {
+      finishError('Informe a forma de pagamento.');
+      return;
+    }
+
+    if (paymentMethod === 'Espécie' && !amount) {
+      finishError('Informe o valor recebido em espécie.');
+      return;
+    }
+
     await postDirectly({
       client: 'web',
       requestId,
@@ -399,6 +417,8 @@ form.addEventListener('submit', async (ev) => {
       party,
       category,
       numero_documento: documentNumber,
+      paymentMethod,
+      amount,
       notes,
       fileName: activeFile.name,
       mimeType:
@@ -440,3 +460,21 @@ uploadFrame.addEventListener('load', () => {
   // O carregamento do iframe não é prova de sucesso.
   // Somente o postMessage do backend com status=ok abre o popup.
 });
+
+function updateAmountVisibility() {
+  const isCash = paymentMethod.value === 'Espécie';
+
+  amountField.hidden = !isCash;
+  amountInput.required = isCash;
+
+  if (!isCash) {
+    amountInput.value = '';
+  }
+}
+
+paymentMethod.addEventListener(
+  'change',
+  updateAmountVisibility
+);
+
+updateAmountVisibility();
