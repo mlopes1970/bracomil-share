@@ -202,8 +202,8 @@ function doPost(e) {
 
     const successPayload = {
       id: id,
-      fileName: file.getName(),
-      fileUrl: file.getUrl(),
+      fileName: file ? file.getName() : '',
+      fileUrl: file ? file.getUrl() : '',
       hash: fileHash,
       user: device.user,
       platform: device.platform,
@@ -470,8 +470,8 @@ function findDuplicate_(records, fileHash) {
 
   return {
     id: values[0],
-    fileName: values[5],
-    url: values[8],
+    fileName: values[8],
+    url: values[11],
     row: row
   };
 }
@@ -601,41 +601,52 @@ function ensureHeaders_(sheet, headers) {
 }
 
 function ensureRecordSchema_(sheet) {
-  const currentE = String(sheet.getRange(1, 5).getValue() || '').trim();
+  const currentHeaders = sheet
+    .getRange(1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(function (v) {
+      return String(v || '').trim();
+    });
 
-  if (currentE === 'Observação') {
-    sheet.insertColumnAfter(4);
-    sheet.getRange(1, 5).setValue('Nº Doc');
-  } else if (currentE && currentE !== 'Nº Doc') {
-    throw new Error(
-      'Estrutura inesperada na coluna E da aba Registros: ' + currentE
-    );
+  if (
+    currentHeaders[4] === 'Nº Doc' &&
+    currentHeaders[5] === 'Observação'
+  ) {
+    // Insere F e G, deslocando Observação e tudo após ela
+    sheet.insertColumnsAfter(5, 2);
   }
 
-  ensureHeaders_(sheet, RECORD_HEADERS);
+  // Atualiza toda a linha de cabeçalho
+  sheet
+    .getRange(1, 1, 1, RECORD_HEADERS.length)
+    .setValues([RECORD_HEADERS]);
 
+  sheet.setFrozenRows(1);
+
+  sheet
+    .getRange(1, 1, 1, RECORD_HEADERS.length)
+    .setFontWeight('bold');
+
+  // Mantém Identificador vazio como "0" nos registros antigos
   const lastRow = sheet.getLastRow();
 
   if (lastRow > 1) {
-    const range = sheet.getRange(2, 5, lastRow - 1, 1);
-    const values = range.getValues();
+    const range = sheet.getRange(
+      2,
+      5,
+      lastRow - 1,
+      1
+    );
 
-    let changed = false;
+    const values = range.getValues();
 
     const normalized = values.map(function (row) {
       const value = String(row[0] == null ? '' : row[0]).trim();
 
-      if (!value) {
-        changed = true;
-        return ['0'];
-      }
-
-      return [value];
+      return [value || '0'];
     });
 
-    if (changed) {
-      range.setValues(normalized);
-    }
+    range.setValues(normalized);
   }
 }
 
