@@ -252,6 +252,7 @@ function cacheReceipt_(requestId, status, message, extra) {
     );
 
   // Add permanently in Sheet
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   const logs = getOrCreateSheet_(ss, CONFIG.LOGS_SHEET, LOGS_HEADER);
   ensureHeaders_(logs, LOGS_HEADER);
 
@@ -714,7 +715,7 @@ function parseBrazilianAmount_(value) {
   const text = String(value || '')
     .replace(/\s/g, '')
     .replace(/R\$/gi, '')
-    .replace(/\./g, ',')
+    .replace(/,/g, '.')
 
   const number = Number(text);
 
