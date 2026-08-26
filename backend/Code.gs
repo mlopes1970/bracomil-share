@@ -478,8 +478,8 @@ function findDuplicate_(records, fileHash) {
 
 function getDestinationFolder_(date) {
   let folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
-  const date = Utilities.formatDate(date, CONFIG.TIMEZONE, 'dd/MM/yyyy');
-  const dateFolder = folderChild_(folder, date);
+  const formattedDate = Utilities.formatDate(date, CONFIG.TIMEZONE, 'dd/MM/yyyy');
+  const dateFolder = folderChild_(folder, formattedDate);
 
   return dateFolder;
 }
