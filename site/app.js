@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v12';
+const CACHE = 'bracomil-share-v13';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const TOKEN_KEY = 'bracomil_app_token_v1';
@@ -364,8 +364,30 @@ form.addEventListener('submit', async (ev) => {
     return;
   }
 
-  if (!activeFile) {
-    finishError('Selecione ou compartilhe um arquivo.');
+  const paymentMethod =
+    document.querySelector('#paymentMethod').value;
+
+  const amount =
+    document.querySelector('#amount').value.trim();
+
+  if (!paymentMethod) {
+    finishError('Informe a forma de pagamento.');
+    return;
+  }
+
+  const isCash = paymentMethod === 'Espécie';
+
+  if (isCash && !amount) {
+    finishError(
+      'Informe o valor recebido em espécie.'
+    );
+    return;
+  }
+
+  if (!isCash && !activeFile) {
+    finishError(
+      'Selecione ou compartilhe o comprovante.'
+    );
     return;
   }
 
@@ -376,7 +398,16 @@ form.addEventListener('submit', async (ev) => {
   uploadStartedAt = Date.now();
 
   try {
-    const base64 = await fileToBase64(activeFile);
+    let base64 = '';
+    let fileName = '';
+    let mimeType = '';
+
+    if (activeFile) {
+      base64 = await fileToBase64(activeFile);
+      fileName = activeFile.name;
+      mimeType =
+        activeFile.type || 'application/octet-stream';
+    }
 
     const party =
       document.querySelector('#party').value.trim();
@@ -420,9 +451,8 @@ form.addEventListener('submit', async (ev) => {
       paymentMethod,
       amount,
       notes,
-      fileName: activeFile.name,
-      mimeType:
-        activeFile.type || 'application/octet-stream',
+      fileName,
+      mimeType,
       base64
     });
 

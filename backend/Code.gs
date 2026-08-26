@@ -78,8 +78,15 @@ function doPost(e) {
       });
     }
 
-    if (!p.base64 || !p.fileName) {
-      throw new Error('Arquivo ausente.');
+    const paymentMethod = String(p.paymentMethod || '').trim();
+    if (!paymentMethod) {
+      throw new Error('Forma de Pagamento obrigatória.');
+    }
+
+    const isCash = (paymentMethod === 'Espécie');
+
+    if (!isCash && (!p.base64 || !p.fileName)) {
+      throw new Error('Arquivo obrigatório para esta forma de pagamento.');
     }
 
     if (!p.party || !String(p.party).trim()) {
@@ -88,11 +95,6 @@ function doPost(e) {
 
     if (!p.category || !String(p.category).trim()) {
       throw new Error('Categoria obrigatória.');
-    }
-
-    const paymentMethod = String(p.paymentMethod || '').trim();
-    if (!paymentMethod) {
-      throw new Error('Forma de Pagamento obrigatória.');
     }
 
     let amount = String(p.amount || '').trim();
@@ -109,14 +111,24 @@ function doPost(e) {
       amount = '';
     }
 
-    const bytes = Utilities.base64Decode(p.base64);
-    const fileHash = sha256Hex_(bytes);
+    const hasFile = Boolean(p.base64 && p.fileName);
+
+    let bytes = null;
+    let fileHash = '';
+
+    if (hasFile) {
+      bytes = Utilities.base64Decode(p.base64);
+      fileHash = sha256Hex_(bytes);
+    }
 
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const records = getOrCreateSheet_(ss, CONFIG.RECORDS_SHEET, RECORD_HEADERS);
     ensureRecordSchema_(records);
 
-    const duplicate = findDuplicate_(records, fileHash);
+    let duplicate = null;
+    if (hasFile) {
+      duplicate = findDuplicate_(records, fileHash);
+    }
 
     if (duplicate) {
       touchDevice_(device.row);
@@ -145,33 +157,19 @@ function doPost(e) {
 
     const party = String(p.party).trim();
     const category = String(p.category).trim();
-    const documentNumber =
-      String(p.numero_documento || p.documentNumber || '').trim() || '0';
-    const mimeType = p.mimeType || 'application/octet-stream';
-    const extension = extensionFor_(p.fileName, mimeType);
+    const documentNumber = String(p.numero_documento || p.documentNumber || '').trim() || '0';
+
+    let file = null
     const now = new Date();
+    if (hasFile) {
+      const mimeType = p.mimeType || 'application/octet-stream';
+      const extension = extensionFor_(p.fileName, mimeType);
 
-    const fileName = buildFileName_(
-      now,
-      party,
-      category,
-      fileHash,
-      extension
-    );
-
-    const destinationFolder = getDestinationFolder_(
-      party,
-      category,
-      now
-    );
-
-    const blob = Utilities.newBlob(
-      bytes,
-      mimeType,
-      fileName
-    );
-
-    const file = destinationFolder.createFile(blob);
+      const fileName = buildFileName_(now, party, category, fileHash, extension);
+      const destinationFolder = getDestinationFolder_(now);
+      const blob = Utilities.newBlob(bytes, mimeType, fileName);
+      file = destinationFolder.createFile(blob);
+    }
 
     const id = Utilities.getUuid();
     const origin = device.platform === 'iOS'
@@ -187,10 +185,10 @@ function doPost(e) {
       paymentMethod,
       amount,
       p.notes || '',
-      file.getName(),
-      file.getMimeType(),
-      file.getSize(),
-      file.getUrl(),
+      file ? file.getName() : '',
+      file ? file.getMimeType() : '',
+      file ? file.getSize() : '',
+      file ? file.getUrl() : '',
       origin,
       fileHash,
       device.user,
@@ -212,37 +210,15 @@ function doPost(e) {
       device: device.device
     };
 
-    cacheReceipt_(
-      requestId,
-      'ok',
-      'Documento salvo com sucesso.',
-      successPayload
-    );
+    cacheReceipt_(requestId, 'ok', 'Documento salvo com sucesso.', successPayload);
 
-    return response_(
-      client,
-      'ok',
-      'Documento salvo com sucesso.',
-      successPayload
-    );
+    return response_(client, 'ok', 'Documento salvo com sucesso.', successPayload);
 
   } catch (err) {
     console.error(err);
-
-    const errorMessage =
-      err && err.message ? err.message : String(err);
-
-    cacheReceipt_(
-      requestId,
-      'error',
-      errorMessage
-    );
-
-    return response_(
-      client,
-      'error',
-      errorMessage
-    );
+    const errorMessage = err && err.message ? err.message : String(err);
+    cacheReceipt_(requestId, 'error', errorMessage);
+    return response_(client, 'error', errorMessage);
   }
 }
 
@@ -500,15 +476,12 @@ function findDuplicate_(records, fileHash) {
   };
 }
 
-function getDestinationFolder_(party, category, date) {
+function getDestinationFolder_(date) {
   let folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+  const date = Utilities.formatDate(date, CONFIG.TIMEZONE, 'dd/MM/yyyy');
+  const dateFolder = folderChild_(folder, date);
 
-  const partyFolder = folderChild_(folder, folderName_(party));
-  const year = Utilities.formatDate(date, CONFIG.TIMEZONE, 'yyyy');
-  const yearFolder = folderChild_(partyFolder, year);
-  const categoryFolder = folderChild_(yearFolder, folderName_(category));
-
-  return categoryFolder;
+  return dateFolder;
 }
 
 function folderChild_(parent, name) {
