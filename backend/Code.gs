@@ -165,7 +165,7 @@ function doPost(e) {
       const mimeType = p.mimeType || 'application/octet-stream';
       const extension = extensionFor_(p.fileName, mimeType);
 
-      const fileName = buildFileName_(now, party, category, fileHash, extension);
+      const fileName = buildFileName_(now, party, category, extension);
       const destinationFolder = getDestinationFolder_(now);
       const blob = Utilities.newBlob(bytes, mimeType, fileName);
       file = destinationFolder.createFile(blob);
@@ -495,22 +495,20 @@ function folderChild_(parent, name) {
   return parent.createFolder(name);
 }
 
-function buildFileName_(date, party, category, hash, extension) {
+// DATA-HORA-NoDOCUMENTO-CLIENT
+function buildFileName_(date, party, category, extension) {
   const day = Utilities.formatDate(
     date,
     CONFIG.TIMEZONE,
-    'yyyy-MM-dd_HHmmss'
+    'dd/MM/yyyy-HH:mm:ss'
   );
-
   const partyPart = filePart_(party).slice(0, 45);
   const categoryPart = filePart_(category).slice(0, 30);
-  const hashPart = String(hash).slice(0, 8).toUpperCase();
 
   return [
     day,
     partyPart,
     categoryPart,
-    hashPart
   ].join('_') + extension;
 }
 
