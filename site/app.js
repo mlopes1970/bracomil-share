@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v13';
+const CACHE = 'bracomil-share-v14';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const TOKEN_KEY = 'bracomil_app_token_v1';
@@ -16,7 +16,6 @@ const sendButton = document.querySelector('#sendButton');
 const uploadFrame = document.querySelector('#uploadFrame');
 
 const paymentMethod = document.querySelector('#paymentMethod');
-const amountField = document.querySelector('#amountField');
 const amountInput = document.querySelector('#amount');
 
 const successModal = document.querySelector('#successModal');
@@ -364,27 +363,22 @@ form.addEventListener('submit', async (ev) => {
     return;
   }
 
-  const paymentMethod =
-    document.querySelector('#paymentMethod').value;
-
-  const amount =
-    document.querySelector('#amount').value.trim();
+  const paymentMethod = document.querySelector('#paymentMethod').value;
+  const amount = document.querySelector('#amount').value.trim();
 
   if (!paymentMethod) {
     finishError('Informe a forma de pagamento.');
     return;
   }
 
-  const isCash = paymentMethod === 'Espécie';
-
-  if (isCash && !amount) {
+  if (!amount) {
     finishError(
-      'Informe o valor recebido em espécie.'
+      'Informe o valor recebido no comprovante.'
     );
     return;
   }
 
-  if (!isCash && !activeFile) {
+  if (paymentMethod !== 'Espécie' && !activeFile) {
     finishError(
       'Selecione ou compartilhe o comprovante.'
     );
@@ -426,20 +420,6 @@ form.addEventListener('submit', async (ev) => {
     startReceiptPolling(requestId);
 
     statusEl.textContent = 'Enviando para o Google Drive…';
-
-    const paymentMethod = document.querySelector('#paymentMethod').value;
-
-    const amount = document.querySelector('#amount').value.trim();
-
-    if (!paymentMethod) {
-      finishError('Informe a forma de pagamento.');
-      return;
-    }
-
-    if (paymentMethod === 'Espécie' && !amount) {
-      finishError('Informe o valor recebido em espécie.');
-      return;
-    }
 
     await postDirectly({
       client: 'web',
@@ -490,21 +470,3 @@ uploadFrame.addEventListener('load', () => {
   // O carregamento do iframe não é prova de sucesso.
   // Somente o postMessage do backend com status=ok abre o popup.
 });
-
-function updateAmountVisibility() {
-  const isCash = paymentMethod.value === 'Espécie';
-
-  amountField.hidden = !isCash;
-  amountInput.required = isCash;
-
-  if (!isCash) {
-    amountInput.value = '';
-  }
-}
-
-paymentMethod.addEventListener(
-  'change',
-  updateAmountVisibility
-);
-
-updateAmountVisibility();

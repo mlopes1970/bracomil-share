@@ -98,17 +98,14 @@ function doPost(e) {
     }
 
     let amount = String(p.amount || '').trim();
-    if (paymentMethod === 'Espécie') {
-      if (!amount) {
-        throw new Error('Valor obrigatório para pagamento em espécie.');
-      }
 
-      amount = parseBrazilianAmount_(p.amount);
-      if (amount <= 0) {
-        throw new Error('O valor deve ser maior que zero.');
-      }
-    } else {
-      amount = '';
+    if (!amount) {
+      throw new Error('Valor obrigatório.');
+    }
+
+    amount = parseBrazilianAmount_(p.amount);
+    if (amount <= 0) {
+      throw new Error('O valor deve ser maior que zero.');
     }
 
     const hasFile = Boolean(p.base64 && p.fileName);
@@ -165,7 +162,7 @@ function doPost(e) {
       const mimeType = p.mimeType || 'application/octet-stream';
       const extension = extensionFor_(p.fileName, mimeType);
 
-      const fileName = buildFileName_(now, party, category, extension);
+      const fileName = buildFileName_(now, party, category, documentNumber, extension);
       const destinationFolder = getDestinationFolder_(now);
       const blob = Utilities.newBlob(bytes, mimeType, fileName);
       file = destinationFolder.createFile(blob);
@@ -496,7 +493,7 @@ function folderChild_(parent, name) {
 }
 
 // DATA-HORA-NoDOCUMENTO-CLIENT
-function buildFileName_(date, party, category, extension) {
+function buildFileName_(date, party, category, documentNumber, extension) {
   const day = Utilities.formatDate(
     date,
     CONFIG.TIMEZONE,
@@ -504,11 +501,13 @@ function buildFileName_(date, party, category, extension) {
   );
   const partyPart = filePart_(party).slice(0, 45);
   const categoryPart = filePart_(category).slice(0, 30);
+  const docNumberPart = filePart_(documentNumber).slice(0, 30);
 
   return [
     day,
     partyPart,
     categoryPart,
+    docNumberPart
   ].join('_') + extension;
 }
 
@@ -713,7 +712,8 @@ function parseBrazilianAmount_(value) {
   const text = String(value || '')
     .replace(/\s/g, '')
     .replace(/R\$/gi, '')
-    .replace(/,/g, '.')
+    .replace(/\./g, '')
+    .replace(',', '.');
 
   const number = Number(text);
 
