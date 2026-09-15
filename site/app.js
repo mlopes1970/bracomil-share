@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v14';
+const CACHE = 'bracomil-share-v15';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const TOKEN_KEY = 'bracomil_app_token_v1';
@@ -311,14 +311,21 @@ function fileToBase64(file) {
 }
 
 async function recoverSharedFile() {
-  if (!('serviceWorker' in navigator)) return;
+  console.log("Tentando recuperar ~SharedFile")
+  if (!('serviceWorker' in navigator)) {
+    console.log("Não foi encontrado service worker")
+    return;
+  }
 
   await navigator.serviceWorker.register('./sw.js');
   await navigator.serviceWorker.ready;
 
   const url = new URL(location.href);
 
-  if (url.searchParams.get('shared') !== '1') return;
+  if (url.searchParams.get('shared') !== '1') {
+    console.log("Shared não está registrado como 'true' ('1')")
+    return;
+  }
 
   const cache = await caches.open(SHARE_INBOX_CACHE);
   const response = await cache.match('./__shared_file__');
@@ -336,9 +343,11 @@ async function recoverSharedFile() {
         name,
         { type: blob.type || 'application/octet-stream' }
       )
-    );
+    )
 
     await cache.delete('./__shared_file__');
+  } else {
+    console.log("Não foi encontrado o cache em ./__shared_file__")
   }
 
   history.replaceState({}, '', './index.html');

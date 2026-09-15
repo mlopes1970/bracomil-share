@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v14';
+const CACHE = 'bracomil-share-15';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const APP_SHELL = [
