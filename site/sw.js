@@ -122,6 +122,13 @@ self.addEventListener('fetch', event => {
 
 async function handleShareTarget(request) {
   try {
+    console.log('[SHARE RAW REQUEST]', {
+      method: request.method,
+      url: request.url,
+      contentType: request.headers.get('content-type'),
+      contentLength: request.headers.get('content-length')
+    });
+
     const formData =
       await request.formData();
 
