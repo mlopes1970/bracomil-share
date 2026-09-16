@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v16-1';
+const CACHE = 'bracomil-share-v17';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const TOKEN_KEY = 'bracomil_app_token_v1';
@@ -317,7 +317,9 @@ async function recoverSharedFile() {
     return;
   }
 
-  await navigator.serviceWorker.register('./sw.js');
+  await navigator.serviceWorker.register('./sw.js', {
+    scope: '/.'
+  });
   await navigator.serviceWorker.ready;
 
   const url = new URL(location.href);

@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v16-1';
+const CACHE = 'bracomil-share-v17';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const APP_SHELL = [
@@ -10,11 +10,11 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(APP_SHELL))
-  );
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(APP_SHELL);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
@@ -38,9 +38,14 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   console.log("Starting fetch")
+
+  const isShareTarget =
+    url.pathname.endsWith('/share-target') ||
+    url.pathname.endsWith('/share-target/');
+
   if (
     event.request.method === 'POST' &&
-    url.pathname.endsWith('/share-target')
+    isShareTarget
   ) {
     event.respondWith((async () => {
       const formData = await event.request.formData();
