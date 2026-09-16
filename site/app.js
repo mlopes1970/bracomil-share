@@ -1,5 +1,5 @@
-const APP_VERSION = '19';
-const CACHE = 'bracomil-share-v19';
+const APP_VERSION = '20';
+const CACHE = 'bracomil-share-v20';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v2';
 const TOKEN_KEY = 'bracomil_app_token_v1';
 
@@ -34,7 +34,9 @@ let receiptPollTimer = null;
 let activeRequestId = '';
 let activeReceiptScript = null;
 
-appVersion.textContent = `v${APP_VERSION}`;
+if (appVersion) {
+  appVersion.textContent = `v${APP_VERSION}`;
+}
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -326,7 +328,6 @@ function fileToBase64(file) {
 }
 
 function sharedInboxKey() {
-  // index.html e sw.js vivem no mesmo diretório de escopo da PWA.
   return new URL('./__shared_file__', document.baseURI).href;
 }
 
@@ -335,11 +336,38 @@ async function registerServiceWorker() {
     throw new Error('Este navegador não suporta Service Worker.');
   }
 
-  // Não definir scope manualmente.
-  // Como sw.js está em /bracomil-share/, o escopo padrão correto é
-  // automaticamente /bracomil-share/.
+  const expectedScope =
+    new URL('./', document.baseURI).href;
+
+  const expectedScript =
+    new URL('./sw.js?v=20', document.baseURI).href;
+
+  // Intencional: esta versão NÃO mantém compatibilidade com workers antigos.
+  // Se houver um worker anterior no mesmo escopo da PWA, ele é removido.
+  const registrations =
+    await navigator.serviceWorker.getRegistrations();
+
+  for (const registration of registrations) {
+    if (registration.scope !== expectedScope) {
+      continue;
+    }
+
+    const scriptUrl =
+      registration.active?.scriptURL ||
+      registration.waiting?.scriptURL ||
+      registration.installing?.scriptURL ||
+      '';
+
+    if (scriptUrl && scriptUrl !== expectedScript) {
+      await registration.unregister();
+    }
+  }
+
+  // Não informar scope manualmente.
+  // Como sw.js está em /bracomil-share/, o escopo padrão correto
+  // é /bracomil-share/.
   const registration =
-    await navigator.serviceWorker.register('./sw.js?v=19');
+    await navigator.serviceWorker.register('./sw.js?v=20');
 
   await navigator.serviceWorker.ready;
 
@@ -365,9 +393,10 @@ async function recoverSharedFile() {
 
   const existingCaches = await caches.keys();
 
+  // Somente o inbox v2 é aceito. Não há fallback para v1.
   if (!existingCaches.includes(SHARE_INBOX_CACHE)) {
     finishError(
-      'O compartilhamento foi recebido, mas a caixa de entrada local não existe. Abra novamente pelo WhatsApp.'
+      'O compartilhamento foi recebido, mas a caixa de entrada v2 não existe. Remova os dados antigos da PWA e abra novamente pelo WhatsApp.'
     );
     history.replaceState({}, '', './index.html');
     return;
@@ -379,8 +408,9 @@ async function recoverSharedFile() {
 
   if (!response) {
     const knownRequests = await cache.keys();
+
     console.error(
-      '[BRACOMIL] Arquivo não encontrado no inbox.',
+      '[BRACOMIL] Arquivo não encontrado no inbox v2.',
       {
         expected: key,
         entries: knownRequests.map(item => item.url)
@@ -388,7 +418,7 @@ async function recoverSharedFile() {
     );
 
     finishError(
-      'O compartilhamento chegou ao aplicativo, mas o arquivo não foi localizado no armazenamento local.'
+      'O compartilhamento chegou ao aplicativo, mas o arquivo não foi localizado no inbox v2.'
     );
     history.replaceState({}, '', './index.html');
     return;
@@ -408,7 +438,6 @@ async function recoverSharedFile() {
     )
   );
 
-  // Apaga somente depois de materializar o Blob em memória.
   await cache.delete(key);
 
   history.replaceState({}, '', './index.html');
@@ -496,7 +525,6 @@ form.addEventListener('submit', async ev => {
 
   sendButton.disabled = true;
   sendButton.textContent = 'ENVIANDO…';
-
   uploadPending = true;
 
   try {
