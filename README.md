@@ -1,25 +1,33 @@
-# BRACOMIL Share
+# Bracomil Share PWA
 
-PWA para compartilhar imagens e PDFs do WhatsApp/Android diretamente para o fluxo documental da Bracomil.
-
-## Fluxo
-
-WhatsApp → Compartilhar → BRACOMIL → preencher Cliente/Fornecedor e Categoria → Enviar → Google Apps Script → Google Drive + Google Sheets.
+PWA para receber comprovantes compartilhados pelo WhatsApp/Android, coletar os dados comerciais e enviar o registro para Google Apps Script + Google Drive + Google Sheets.
 
 ## Estrutura
 
-- `site/`: PWA publicada no GitHub Pages.
-- `backend/Code.gs`: referência do backend já implantado no Google Apps Script.
-- `.github/workflows/pages.yml`: publicação automática no GitHub Pages.
+- `site/`: GitHub Pages / PWA.
+- `backend/Code.gs`: backend Google Apps Script.
+- `.github/workflows/pages.yml`: publicação do diretório `site/`.
 
-## Backend configurado
+## Versão desta revisão
 
-A PWA aponta para o Web App do Google Apps Script já informado pelo proprietário. A URL está em `site/app.js`.
+`v19`
 
-## GitHub Pages
+Principais correções:
+- Service Worker sem `scope` manual inválido.
+- Web Share Target em `./share-target`.
+- Inbox de compartilhamento separado do cache do app.
+- Chave absoluta e determinística do arquivo compartilhado.
+- Verificação de `cache.put()` antes do redirect.
+- Navegação `network-first` para evitar HTML antigo preso em cache.
+- Assets com cache e atualização em background.
+- `Valor` obrigatório para todas as formas de pagamento.
+- Arquivo opcional apenas em `Espécie`.
+- Remoção do iframe/formulário legado de upload.
+- Backend preparado para registros sem arquivo em espécie.
+- Migração da aba `Registros` para 18 colunas.
 
-O workflow publica o conteúdo de `site/` a cada push na branch `main`. No GitHub, configure Pages com **Source: GitHub Actions** se o repositório ainda não estiver habilitado para Pages.
+## Publicação
 
-## Instalação no Android
+O workflow publica `site/` no GitHub Pages.
 
-Abra o endereço do GitHub Pages no Chrome, use **Instalar app** / **Adicionar à tela inicial** e conclua a instalação. Após a instalação, o manifesto registra a PWA como destino de compartilhamento para imagens e PDFs compatíveis.
+Depois de atualizar `backend/Code.gs`, publique uma **nova versão da implantação existente** no Apps Script para preservar a URL `/exec`.

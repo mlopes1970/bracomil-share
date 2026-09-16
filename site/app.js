@@ -1,6 +1,6 @@
-const CACHE = 'bracomil-share-v18';
-const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
-
+const APP_VERSION = '19';
+const CACHE = 'bracomil-share-v19';
+const SHARE_INBOX_CACHE = 'bracomil-inbox-v2';
 const TOKEN_KEY = 'bracomil_app_token_v1';
 
 const CONFIG = {
@@ -13,9 +13,8 @@ const statusEl = document.querySelector('#status');
 const fileInfo = document.querySelector('#fileInfo');
 const preview = document.querySelector('#preview');
 const sendButton = document.querySelector('#sendButton');
-const uploadFrame = document.querySelector('#uploadFrame');
 
-const paymentMethod = document.querySelector('#paymentMethod');
+const paymentMethodSelect = document.querySelector('#paymentMethod');
 const amountInput = document.querySelector('#amount');
 
 const successModal = document.querySelector('#successModal');
@@ -25,14 +24,17 @@ const tokenButton = document.querySelector('#tokenButton');
 const tokenInput = document.querySelector('#tokenInput');
 const tokenSave = document.querySelector('#tokenSave');
 const tokenCancel = document.querySelector('#tokenCancel');
+const appVersion = document.querySelector('#appVersion');
 
 let activeFile = null;
+let activePreviewUrl = '';
 let uploadPending = false;
-let uploadStartedAt = 0;
 let uploadTimeoutId = null;
 let receiptPollTimer = null;
 let activeRequestId = '';
 let activeReceiptScript = null;
+
+appVersion.textContent = `v${APP_VERSION}`;
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -65,6 +67,11 @@ tokenSave.addEventListener('click', () => {
 tokenCancel.addEventListener('click', closeTokenModal);
 
 function setFile(file) {
+  if (activePreviewUrl) {
+    URL.revokeObjectURL(activePreviewUrl);
+    activePreviewUrl = '';
+  }
+
   activeFile = file || null;
 
   if (!activeFile) {
@@ -78,12 +85,18 @@ function setFile(file) {
     `${activeFile.name} • ${(activeFile.size / 1024 / 1024).toFixed(2)} MB`;
 
   if (activeFile.type.startsWith('image/')) {
-    preview.src = URL.createObjectURL(activeFile);
+    activePreviewUrl = URL.createObjectURL(activeFile);
+    preview.src = activePreviewUrl;
     preview.hidden = false;
   } else {
     preview.hidden = true;
+    preview.removeAttribute('src');
   }
 }
+
+fileInput.addEventListener('change', () => {
+  setFile(fileInput.files?.[0] || null);
+});
 
 function resetSendingState() {
   uploadPending = false;
@@ -102,6 +115,7 @@ function resetSendingState() {
 function showSuccess() {
   resetSendingState();
   statusEl.textContent = '';
+  statusEl.className = '';
   successModal.hidden = false;
 }
 
@@ -117,11 +131,6 @@ function finishError(message) {
   statusEl.textContent =
     message || 'Não foi possível concluir o envio.';
 }
-
-fileInput.addEventListener(
-  'change',
-  () => setFile(fileInput.files[0])
-);
 
 function createRequestId() {
   if (
@@ -196,7 +205,7 @@ function checkReceipt(requestId, retry) {
     }
   };
 
-  window[callbackName] = (data) => {
+  window[callbackName] = data => {
     cleanup();
 
     if (!uploadPending || activeRequestId !== requestId) {
@@ -210,8 +219,7 @@ function checkReceipt(requestId, retry) {
 
     if (data.status === 'pending') {
       statusEl.textContent =
-        'Arquivo recebido. Aguardando confirmação do servidor…';
-
+        'Dados recebidos. Aguardando confirmação do servidor…';
       receiptPollTimer = setTimeout(retry, 1500);
       return;
     }
@@ -228,7 +236,6 @@ function checkReceipt(requestId, retry) {
   };
 
   const statusUrl = new URL(CONFIG.APPS_SCRIPT_URL);
-
   statusUrl.searchParams.set('action', 'status');
   statusUrl.searchParams.set('requestId', requestId);
   statusUrl.searchParams.set('callback', callbackName);
@@ -286,9 +293,6 @@ async function postDirectly(fields) {
     body.set(key, value == null ? '' : String(value));
   });
 
-  // Apps Script não fornece CORS para leitura da resposta.
-  // mode=no-cors permite enviar o POST; a confirmação real
-  // continua sendo obtida pelo recibo consultado por requestId.
   await fetch(CONFIG.APPS_SCRIPT_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -300,98 +304,136 @@ async function postDirectly(fields) {
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
-    const r = new FileReader();
+    const reader = new FileReader();
 
-    r.onload = () =>
-      resolve(String(r.result).split(',')[1]);
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
 
-    r.onerror = reject;
-    r.readAsDataURL(file);
+      if (comma < 0) {
+        reject(new Error('Não foi possível converter o arquivo.'));
+        return;
+      }
+
+      resolve(result.slice(comma + 1));
+    };
+
+    reader.onerror = () =>
+      reject(reader.error || new Error('Falha ao ler o arquivo.'));
+
+    reader.readAsDataURL(file);
   });
 }
 
-async function recoverSharedFile() {
-  console.log("Tentando recuperar ~SharedFile")
+function sharedInboxKey() {
+  // index.html e sw.js vivem no mesmo diretório de escopo da PWA.
+  return new URL('./__shared_file__', document.baseURI).href;
+}
+
+async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
-    console.log("Não foi encontrado service worker")
-    return;
+    throw new Error('Este navegador não suporta Service Worker.');
   }
 
-  await navigator.serviceWorker.register('./sw.js');
+  // Não definir scope manualmente.
+  // Como sw.js está em /bracomil-share/, o escopo padrão correto é
+  // automaticamente /bracomil-share/.
+  const registration =
+    await navigator.serviceWorker.register('./sw.js?v=19');
+
   await navigator.serviceWorker.ready;
 
+  return registration;
+}
+
+async function recoverSharedFile() {
   const url = new URL(location.href);
+  const shareError = url.searchParams.get('share_error');
 
-  console.log("Valor do shared", url.searchParams.get('shared'))
-
-  if (url.searchParams.get('shared') !== '1') {
-    console.log("Shared não está registrado como 'true' ('1')")
+  if (shareError) {
+    finishError(
+      'O Android abriu o compartilhamento, mas o arquivo não pôde ser armazenado localmente. Código: ' +
+      shareError
+    );
+    history.replaceState({}, '', './index.html');
     return;
   }
 
-  const keys = await caches.keys();
+  if (url.searchParams.get('shared') !== '1') {
+    return;
+  }
 
-  console.log(
-    '[APP] caches existentes:',
-    keys
-  );
+  const existingCaches = await caches.keys();
 
-  const beforeOpen =
-    await caches.keys();
-
-  console.log(
-    '[APP] antes do open:',
-    beforeOpen
-  );
-
-  const existed =
-    beforeOpen.includes(
-      SHARE_INBOX_CACHE
+  if (!existingCaches.includes(SHARE_INBOX_CACHE)) {
+    finishError(
+      'O compartilhamento foi recebido, mas a caixa de entrada local não existe. Abra novamente pelo WhatsApp.'
     );
-
-  console.log(
-    '[APP] inbox já existia?',
-    existed
-  );
+    history.replaceState({}, '', './index.html');
+    return;
+  }
 
   const cache = await caches.open(SHARE_INBOX_CACHE);
+  const key = sharedInboxKey();
+  const response = await cache.match(key);
 
-  const requests = await cache.keys();
+  if (!response) {
+    const knownRequests = await cache.keys();
+    console.error(
+      '[BRACOMIL] Arquivo não encontrado no inbox.',
+      {
+        expected: key,
+        entries: knownRequests.map(item => item.url)
+      }
+    );
 
-  console.log('[APP] itens do inbox:', requests.map(r => r.url));
-
-  const response = await cache.match('./__shared_file__');
-
-  if (response) {
-    const blob = await response.blob();
-    const raw = response.headers.get('X-Shared-File-Name');
-    const name = raw
-      ? decodeURIComponent(raw)
-      : `whatsapp-${Date.now()}`;
-
-    setFile(
-      new File(
-        [blob],
-        name,
-        { type: blob.type || 'application/octet-stream' }
-      )
-    )
-
-    await cache.delete('./__shared_file__');
-  } else {
-    console.log("Não foi encontrado o cache em ./__shared_file__")
+    finishError(
+      'O compartilhamento chegou ao aplicativo, mas o arquivo não foi localizado no armazenamento local.'
+    );
+    history.replaceState({}, '', './index.html');
+    return;
   }
+
+  const blob = await response.blob();
+  const raw = response.headers.get('X-Shared-File-Name');
+  const name = raw
+    ? decodeURIComponent(raw)
+    : `whatsapp-${Date.now()}`;
+
+  setFile(
+    new File(
+      [blob],
+      name,
+      { type: blob.type || 'application/octet-stream' }
+    )
+  );
+
+  // Apaga somente depois de materializar o Blob em memória.
+  await cache.delete(key);
 
   history.replaceState({}, '', './index.html');
 }
 
-recoverSharedFile().catch(err => console.error(err));
+async function boot() {
+  try {
+    await registerServiceWorker();
+  } catch (err) {
+    console.error('[BRACOMIL] Erro ao registrar Service Worker:', err);
+    finishError(
+      'Não foi possível ativar o compartilhamento do aplicativo. Feche e abra novamente. ' +
+      (err?.message || '')
+    );
+    return;
+  }
 
-if (!getToken()) {
-  openTokenModal();
+  await recoverSharedFile();
+
+  if (!getToken()) {
+    openTokenModal();
+  }
 }
 
-form.addEventListener('submit', async (ev) => {
+form.addEventListener('submit', async ev => {
   ev.preventDefault();
 
   statusEl.className = '';
@@ -404,22 +446,48 @@ form.addEventListener('submit', async (ev) => {
     return;
   }
 
-  const paymentMethod = document.querySelector('#paymentMethod').value;
-  const amount = document.querySelector('#amount').value.trim();
+  const party =
+    document.querySelector('#party').value.trim();
 
-  if (!paymentMethod) {
+  const category =
+    document.querySelector('#category').value;
+
+  const documentNumber =
+    document.querySelector('#numero_documento').value.trim() || '0';
+
+  const selectedPaymentMethod =
+    paymentMethodSelect.value;
+
+  const amount =
+    amountInput.value.trim();
+
+  const notes =
+    document.querySelector('#notes').value.trim();
+
+  if (!party) {
+    finishError('Informe o cliente / fornecedor.');
+    return;
+  }
+
+  if (!category) {
+    finishError('Informe a origem do comprovante.');
+    return;
+  }
+
+  if (!selectedPaymentMethod) {
     finishError('Informe a forma de pagamento.');
     return;
   }
 
   if (!amount) {
-    finishError(
-      'Informe o valor recebido no comprovante.'
-    );
+    finishError('Informe o valor.');
     return;
   }
 
-  if (paymentMethod !== 'Espécie' && !activeFile) {
+  const isCash =
+    selectedPaymentMethod === 'Espécie';
+
+  if (!isCash && !activeFile) {
     finishError(
       'Selecione ou compartilhe o comprovante.'
     );
@@ -430,7 +498,6 @@ form.addEventListener('submit', async (ev) => {
   sendButton.textContent = 'ENVIANDO…';
 
   uploadPending = true;
-  uploadStartedAt = Date.now();
 
   try {
     let base64 = '';
@@ -444,23 +511,12 @@ form.addEventListener('submit', async (ev) => {
         activeFile.type || 'application/octet-stream';
     }
 
-    const party =
-      document.querySelector('#party').value.trim();
-
-    const category =
-      document.querySelector('#category').value;
-
-    const documentNumber =
-      document.querySelector('#numero_documento').value.trim() || '0';
-
-    const notes =
-      document.querySelector('#notes').value.trim();
-
     const requestId = createRequestId();
 
     startReceiptPolling(requestId);
 
-    statusEl.textContent = 'Enviando para o Google Drive…';
+    statusEl.textContent =
+      'Enviando para o Google Drive…';
 
     await postDirectly({
       client: 'web',
@@ -469,7 +525,7 @@ form.addEventListener('submit', async (ev) => {
       party,
       category,
       numero_documento: documentNumber,
-      paymentMethod,
+      paymentMethod: selectedPaymentMethod,
       amount,
       notes,
       fileName,
@@ -478,7 +534,7 @@ form.addEventListener('submit', async (ev) => {
     });
 
     statusEl.textContent =
-      'Arquivo transmitido. Aguardando confirmação do servidor…';
+      'Dados transmitidos. Aguardando confirmação do servidor…';
 
     uploadTimeoutId = setTimeout(() => {
       if (uploadPending) {
@@ -489,25 +545,24 @@ form.addEventListener('submit', async (ev) => {
     }, 60000);
   } catch (err) {
     console.error(err);
-    finishError('Não foi possível preparar o arquivo para envio.');
+    finishError(
+      'Não foi possível preparar ou transmitir o registro.'
+    );
   }
 });
 
-window.addEventListener('message', (event) => {
-  let data = event.data;
-
-  if (typeof data === 'string') {
-    try {
-      data = JSON.parse(data);
-    } catch {
-      return;
-    }
-  }
-
-  handleServerResult(data);
+window.addEventListener('online', () => {
+  statusEl.className = '';
+  statusEl.textContent = '';
 });
 
-uploadFrame.addEventListener('load', () => {
-  // O carregamento do iframe não é prova de sucesso.
-  // Somente o postMessage do backend com status=ok abre o popup.
+window.addEventListener('offline', () => {
+  statusEl.className = 'err';
+  statusEl.textContent =
+    'Sem conexão com a internet. O envio ao servidor não poderá ser concluído.';
+});
+
+boot().catch(err => {
+  console.error('[BRACOMIL] Erro na inicialização:', err);
+  finishError('Falha ao iniciar o aplicativo.');
 });

@@ -1,13 +1,18 @@
-const CACHE = 'bracomil-share-v18';
-const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
+const CACHE = 'bracomil-share-v19';
+const SHARE_INBOX_CACHE = 'bracomil-inbox-v2';
 
 const APP_SHELL = [
-  './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './manifest.webmanifest'
+  './styles.css?v=19',
+  './app.js?v=19',
+  './manifest.webmanifest?v=19',
+  './icon-192.png',
+  './icon-512.png'
 ];
+
+function inboxKey() {
+  return new URL('./__shared_file__', self.registration.scope).href;
+}
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -19,109 +24,129 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    console.log("Pegando keys do cache")
     const keys = await caches.keys();
-    console.log("Keys", keys)
+
     await Promise.all(
       keys
-        .filter(k =>
-          k.startsWith('bracomil-share-') &&
-          k !== CACHE
+        .filter(key =>
+          key.startsWith('bracomil-share-') &&
+          key !== CACHE
         )
-        .map(k => caches.delete(k))
+        .map(key => caches.delete(key))
     );
-    console.log("Delete keys", keys)
+
+    // Não apaga o inbox; ele é separado do cache do app.
     await self.clients.claim();
   })());
 });
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  console.log("Starting fetch")
 
   const isShareTarget =
-    url.pathname.endsWith('/share-target') ||
-    url.pathname.endsWith('/share-target/');
-
-  if (
     event.request.method === 'POST' &&
-    isShareTarget
-  ) {
-    event.respondWith((async () => {
-      const formData = await event.request.formData();
-      const files = formData
-        .getAll('files')
-        .filter(v => v instanceof File);
+    (
+      url.pathname.endsWith('/share-target') ||
+      url.pathname.endsWith('/share-target/')
+    );
 
-      const file = files[0];
-      console.log("file in POST", file ? file.name || "arquivo" : "no file")
-      if (file) {
-        const headers = new Headers({
-          'Content-Type':
-            file.type || 'application/octet-stream',
-          'X-Shared-File-Name':
-            encodeURIComponent(file.name || 'arquivo')
-        });
-        console.log("Opening cache")
-        try {
-          const cache = await caches.open(SHARE_INBOX_CACHE);
-
-          console.log(
-            '[SHARE] cache aberto:',
-            SHARE_INBOX_CACHE
-          );
-
-          console.log(
-            '[SHARE] arquivo:',
-            file?.name,
-            file?.size,
-            file?.type
-          );
-
-          await cache.put(
-            './__shared_file__',
-            new Response(file, { headers })
-          );
-
-          console.log(
-            '[SHARE] cache.put OK'
-          );
-
-          const test = await cache.match('./__shared_file__');
-
-          console.log(
-            '[SHARE] leitura imediata após put:',
-            !!test
-          );
-
-        } catch (err) {
-          console.error(
-            '[SHARE] ERRO cache.put:',
-            err?.name,
-            err?.message,
-            err
-          );
-
-          throw err;
-        }
-      }
-
-      return Response.redirect(
-        new URL(
-          './index.html?shared=1',
-          event.request.url
-        ).href,
-        303
-      );
-    })());
-
+  if (isShareTarget) {
+    event.respondWith(handleShareTarget(event.request));
     return;
   }
 
-  if (event.request.method === 'GET') {
-    event.respondWith(
-      caches.match(event.request)
-        .then(r => r || fetch(event.request))
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Navegações: rede primeiro para reduzir risco de HTML antigo preso em cache.
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(event.request, { cache: 'no-store' });
+        if (response && response.ok) {
+          const cache = await caches.open(CACHE);
+          await cache.put('./index.html', response.clone());
+        }
+        return response;
+      } catch (err) {
+        return (
+          await caches.match('./index.html') ||
+          Response.error()
+        );
+      }
+    })());
+    return;
+  }
+
+  // Assets: cache primeiro, com atualização em background quando possível.
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request);
+
+    const networkPromise = fetch(event.request)
+      .then(async response => {
+        if (response && response.ok && response.type !== 'opaque') {
+          const cache = await caches.open(CACHE);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      })
+      .catch(() => null);
+
+    if (cached) {
+      event.waitUntil(networkPromise);
+      return cached;
+    }
+
+    return (await networkPromise) || Response.error();
+  })());
+});
+
+async function handleShareTarget(request) {
+  try {
+    const formData = await request.formData();
+    const values = formData.getAll('files');
+    const file = values.find(value =>
+      value instanceof File && value.size > 0
+    );
+
+    if (!file) {
+      return redirectToApp('share_error=no_file');
+    }
+
+    const headers = new Headers({
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-Shared-File-Name': encodeURIComponent(file.name || 'arquivo'),
+      'X-Shared-File-Size': String(file.size || 0),
+      'X-Shared-At': new Date().toISOString()
+    });
+
+    const cache = await caches.open(SHARE_INBOX_CACHE);
+    const key = inboxKey();
+
+    await cache.put(
+      key,
+      new Response(file, { headers })
+    );
+
+    // Verificação imediata: só redireciona como sucesso se o objeto puder ser relido.
+    const persisted = await cache.match(key);
+
+    if (!persisted) {
+      throw new Error('Arquivo não pôde ser relido após cache.put().');
+    }
+
+    return redirectToApp('shared=1');
+  } catch (err) {
+    console.error('[BRACOMIL SHARE] Falha no share target:', err);
+    return redirectToApp(
+      'share_error=' + encodeURIComponent(err?.name || 'cache_error')
     );
   }
-});
+}
+
+function redirectToApp(query) {
+  const target = new URL('./index.html', self.registration.scope);
+  target.search = query;
+  return Response.redirect(target.href, 303);
+}
