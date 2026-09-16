@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-15';
+const CACHE = 'bracomil-share-v15-1';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const APP_SHELL = [
@@ -19,8 +19,9 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
+    console.log("Pegando keys do cache")
     const keys = await caches.keys();
-
+    console.log("Keys", keys)
     await Promise.all(
       keys
         .filter(k =>
@@ -29,14 +30,14 @@ self.addEventListener('activate', event => {
         )
         .map(k => caches.delete(k))
     );
-
+    console.log("Delete keys", keys)
     await self.clients.claim();
   })());
 });
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-
+  console.log("Starting fetch")
   if (
     event.request.method === 'POST' &&
     url.pathname.endsWith('/share-target')
@@ -48,7 +49,7 @@ self.addEventListener('fetch', event => {
         .filter(v => v instanceof File);
 
       const file = files[0];
-
+      console.log("file in POST", file.name || "arquivo")
       if (file) {
         const headers = new Headers({
           'Content-Type':
@@ -56,9 +57,9 @@ self.addEventListener('fetch', event => {
           'X-Shared-File-Name':
             encodeURIComponent(file.name || 'arquivo')
         });
-
+        console.log("Opening cache")
         const cache = await caches.open(SHARE_INBOX_CACHE);
-
+        console.log("Putting headers in cache", headers)
         await cache.put(
           './__shared_file__',
           new Response(file, { headers })

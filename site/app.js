@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v15';
+const CACHE = 'bracomil-share-v15-1';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const TOKEN_KEY = 'bracomil_app_token_v1';
@@ -322,6 +322,8 @@ async function recoverSharedFile() {
 
   const url = new URL(location.href);
 
+  console.log("Valor do shared", url.searchParams.get('shared'))
+
   if (url.searchParams.get('shared') !== '1') {
     console.log("Shared não está registrado como 'true' ('1')")
     return;
@@ -329,7 +331,8 @@ async function recoverSharedFile() {
 
   const cache = await caches.open(SHARE_INBOX_CACHE);
   const response = await cache.match('./__shared_file__');
-
+  console.log("Cache aberto", cache)
+  console.log("Match", response)
   if (response) {
     const blob = await response.blob();
     const raw = response.headers.get('X-Shared-File-Name');
