@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v17';
+const CACHE = 'bracomil-share-v18';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const TOKEN_KEY = 'bracomil_app_token_v1';
@@ -317,9 +317,7 @@ async function recoverSharedFile() {
     return;
   }
 
-  await navigator.serviceWorker.register('./sw.js', {
-    scope: '/.'
-  });
+  await navigator.serviceWorker.register('./sw.js');
   await navigator.serviceWorker.ready;
 
   const url = new URL(location.href);
@@ -331,10 +329,39 @@ async function recoverSharedFile() {
     return;
   }
 
+  const keys = await caches.keys();
+
+  console.log(
+    '[APP] caches existentes:',
+    keys
+  );
+
+  const beforeOpen =
+    await caches.keys();
+
+  console.log(
+    '[APP] antes do open:',
+    beforeOpen
+  );
+
+  const existed =
+    beforeOpen.includes(
+      SHARE_INBOX_CACHE
+    );
+
+  console.log(
+    '[APP] inbox já existia?',
+    existed
+  );
+
   const cache = await caches.open(SHARE_INBOX_CACHE);
+
+  const requests = await cache.keys();
+
+  console.log('[APP] itens do inbox:', requests.map(r => r.url));
+
   const response = await cache.match('./__shared_file__');
-  console.log("Cache aberto", cache)
-  console.log("Match", response)
+
   if (response) {
     const blob = await response.blob();
     const raw = response.headers.get('X-Shared-File-Name');

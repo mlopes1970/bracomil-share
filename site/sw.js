@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v17';
+const CACHE = 'bracomil-share-v18';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const APP_SHELL = [
@@ -63,12 +63,47 @@ self.addEventListener('fetch', event => {
             encodeURIComponent(file.name || 'arquivo')
         });
         console.log("Opening cache")
-        const cache = await caches.open(SHARE_INBOX_CACHE);
-        console.log("Putting headers in cache", headers)
-        await cache.put(
-          './__shared_file__',
-          new Response(file, { headers })
-        );
+        try {
+          const cache = await caches.open(SHARE_INBOX_CACHE);
+
+          console.log(
+            '[SHARE] cache aberto:',
+            SHARE_INBOX_CACHE
+          );
+
+          console.log(
+            '[SHARE] arquivo:',
+            file?.name,
+            file?.size,
+            file?.type
+          );
+
+          await cache.put(
+            './__shared_file__',
+            new Response(file, { headers })
+          );
+
+          console.log(
+            '[SHARE] cache.put OK'
+          );
+
+          const test = await cache.match('./__shared_file__');
+
+          console.log(
+            '[SHARE] leitura imediata após put:',
+            !!test
+          );
+
+        } catch (err) {
+          console.error(
+            '[SHARE] ERRO cache.put:',
+            err?.name,
+            err?.message,
+            err
+          );
+
+          throw err;
+        }
       }
 
       return Response.redirect(
