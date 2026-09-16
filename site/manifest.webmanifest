@@ -30,7 +30,15 @@
         {
           "name": "files",
           "accept": [
-            "*/*"
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".pdf"
           ]
         }
       ]
