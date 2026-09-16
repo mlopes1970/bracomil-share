@@ -34,7 +34,16 @@
           "name": "files",
           "accept": [
             "image/*",
-            "application/pdf"
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+            "application/octet-stream",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".pdf"
           ]
         }
       ]

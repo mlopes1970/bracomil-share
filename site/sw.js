@@ -1,11 +1,11 @@
-const CACHE = 'bracomil-share-v20';
+const CACHE = 'bracomil-share-v21';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v2';
 
 const APP_SHELL = [
   './index.html',
   './styles.css?v=19',
   './app.js?v=20',
-  './manifest.webmanifest?v=19',
+  './manifest.webmanifest?v=21',
   './icon-192.png',
   './icon-512.png'
 ];
@@ -38,7 +38,6 @@ self.addEventListener('activate', event => {
         .map(key => caches.delete(key))
     );
 
-    // Apenas o inbox v2 permanece suportado.
     await self.clients.claim();
   })());
 });
@@ -126,11 +125,30 @@ async function handleShareTarget(request) {
     const formData =
       await request.formData();
 
+    const debugFields =
+      Array.from(formData.entries()).map(([key, value]) => ({
+        key,
+        type: typeof value,
+        constructor: value?.constructor?.name || '',
+        size:
+          typeof value?.size === 'number'
+            ? value.size
+            : null,
+        mime:
+          typeof value?.type === 'string'
+            ? value.type
+            : '',
+        isString:
+          typeof value === 'string'
+      }));
+
+    console.log(
+      '[BRACOMIL SHARE] FormData recebido:',
+      debugFields
+    );
+
     let file = null;
 
-    // Não depende de instanceof File nem somente da chave "files".
-    // Há diferenças entre Android/Chrome/WebAPK na materialização
-    // do conteúdo compartilhado.
     for (const [, value] of formData.entries()) {
       const looksLikeBlob =
         value &&
@@ -148,22 +166,24 @@ async function handleShareTarget(request) {
     }
 
     if (!file) {
+      const fieldNames =
+        debugFields
+          .map(item => item.key)
+          .join('_')
+          .replace(/[^A-Za-z0-9_-]/g, '')
+          .slice(0, 80);
+
       console.error(
         '[BRACOMIL SHARE] Nenhum arquivo válido no FormData.',
-        Array.from(formData.entries()).map(([key, value]) => ({
-          key,
-          type: typeof value,
-          constructor: value?.constructor?.name || '',
-          size:
-            typeof value?.size === 'number'
-              ? value.size
-              : null,
-          mime: value?.type || ''
-        }))
+        debugFields
       );
 
       return redirectToApp(
-        'share_error=no_file'
+        'share_error=' +
+        encodeURIComponent(
+          'no_file_' +
+          (fieldNames || 'empty_form')
+        )
       );
     }
 
@@ -200,7 +220,6 @@ async function handleShareTarget(request) {
       new Response(file, { headers })
     );
 
-    // Só considera recebido se puder reler o mesmo objeto.
     const persisted =
       await cache.match(key);
 
