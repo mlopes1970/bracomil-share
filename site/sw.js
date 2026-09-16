@@ -1,4 +1,4 @@
-const CACHE = 'bracomil-share-v16';
+const CACHE = 'bracomil-share-v16-1';
 const SHARE_INBOX_CACHE = 'bracomil-inbox-v1';
 
 const APP_SHELL = [
@@ -49,7 +49,7 @@ self.addEventListener('fetch', event => {
         .filter(v => v instanceof File);
 
       const file = files[0];
-      console.log("file in POST", file.name || "arquivo")
+      console.log("file in POST", file ? file.name || "arquivo" : "no file")
       if (file) {
         const headers = new Headers({
           'Content-Type':
