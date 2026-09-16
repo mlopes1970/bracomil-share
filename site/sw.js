@@ -127,6 +127,8 @@ async function handleShareTarget(request) {
     const rawBuffer =
       await rawRequest.arrayBuffer();
 
+    const rawBytes = new Uint8Array(rawBuffer);
+
     console.log(
       '[SHARE RAW BODY]',
       {
